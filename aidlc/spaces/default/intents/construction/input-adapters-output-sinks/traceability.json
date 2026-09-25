@@ -1,0 +1,20 @@
+{
+  "stage": "input-adapters-output-sinks",
+  "sources": [
+    "aidlc/spaces/default/intents/construction/input-adapters-output-sinks/requirements.md",
+    "aidlc/spaces/default/intents/construction/input-adapters-output-sinks/stories.md",
+    "AGENTS.md",
+    "pkg/interfaces/interfaces.go",
+    "pkg/domain/event.go",
+    "pkg/adapters/registry/registry.go"
+  ],
+  "targets": [
+    {"id": "FR-1", "path": "pkg/adapters/inputs/json", "kind": "input"},
+    {"id": "FR-2", "path": "pkg/adapters/inputs/http", "kind": "input"},
+    {"id": "FR-3", "path": "pkg/adapters/inputs/mqtt", "kind": "input"},
+    {"id": "FR-4", "path": "pkg/adapters/sinks/stdout", "kind": "sink"},
+    {"id": "FR-5", "path": "pkg/adapters/sinks/mqtt", "kind": "sink"},
+    {"id": "FR-6", "path": "pkg/adapters/sinks/nats", "kind": "sink"},
+    {"id": "FR-7", "path": "pkg/adapters/sinks/kafka", "kind": "sink"}
+  ]
+}
