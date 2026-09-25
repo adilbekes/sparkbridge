@@ -4,24 +4,24 @@ package mqtt
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"time"
 	"strings"
 	"sync"
 
 	mqttclient "github.com/eclipse/paho.mqtt.golang"
+	"google.golang.org/protobuf/proto"
 
 	"sparkbridge/pkg/adapters/registry"
 	"sparkbridge/pkg/domain"
 	"sparkbridge/pkg/interfaces"
 	"sparkbridge/pkg/pipeline"
+	"sparkbridge/pkg/spbproto"
 )
 
 // Config represents the MQTT sink configuration.
 type Config struct {
 	LWTTopic   string
-	LWTPayload  []byte
+	LWTPayload []byte
 	ClientID   string
 	BrokerURL  string
 	GroupID    string
@@ -34,16 +34,15 @@ type Sink struct {
 	mu            sync.Mutex
 	config        Config
 	client        mqttclient.Client
-	commandOutput  chan<- domain.Event
-	commandRouter  func(context.Context, domain.Event) error
-	commandSink   interfaces.OutputSink
+	commandOutput chan<- domain.Event
+	commandRouter func(context.Context, domain.Event) error
 	subscriptions map[string]struct{}
 	lastMessage   pipeline.EncodedMessage
 }
 
 // New creates a new MQTT sink.
 func New(cfg Config) *Sink {
-	return &Sink{config: cfg, subscriptions: map[string]struct{}{}, commandOutput: make(chan domain.Event, 32)}
+	return &Sink{config: cfg, subscriptions: map[string]struct{}{}}
 }
 
 // WithCommandOutput wires inbound command events into the pipeline.
@@ -56,18 +55,15 @@ func (s *Sink) WithCommandOutput(out chan<- domain.Event) *Sink {
 
 // WithCommandRouter wires command events directly into a rebirth-capable router.
 func (s *Sink) WithCommandRouter(router func(context.Context, domain.Event) error) *Sink {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.commandRouter = router
+	s.SetCommandRouter(router)
 	return s
 }
 
-// WithCommandSink wires the rebirth path back to an output sink.
-func (s *Sink) WithCommandSink(sink interfaces.OutputSink) *Sink {
+// SetCommandRouter wires command events into a rebirth-capable router.
+func (s *Sink) SetCommandRouter(router func(context.Context, domain.Event) error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.commandSink = sink
-	return s
+	s.commandRouter = router
 }
 
 // Connect initializes the MQTT client and LWT configuration.
@@ -88,6 +84,11 @@ func (s *Sink) Connect() error {
 		opts.SetWill(s.config.LWTTopic, string(s.config.LWTPayload), 0, false)
 	}
 	opts.SetDefaultPublishHandler(s.onMessage)
+	opts.SetConnectionLostHandler(func(_ mqttclient.Client, _ error) {
+		s.mu.Lock()
+		clear(s.subscriptions)
+		s.mu.Unlock()
+	})
 	s.client = mqttclient.NewClient(opts)
 	if token := s.client.Connect(); token.Wait() && token.Error() != nil {
 		return token.Error()
@@ -97,26 +98,35 @@ func (s *Sink) Connect() error {
 
 // Publish accepts payloads and stores them as the latest publish.
 func (s *Sink) Publish(ctx context.Context, topic string, payload []byte) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.lastMessage = pipeline.EncodedMessage{Topic: topic, Payload: payload}
-	if s.client != nil && s.client.IsConnected() {
-		if token := s.client.Publish(topic, 0, false, payload); token.Wait() && token.Error() != nil {
+	client := s.client
+	s.mu.Unlock()
+	if client != nil && client.IsConnected() {
+		if token := client.Publish(topic, 0, false, payload); token.Wait() && token.Error() != nil {
 			return token.Error()
 		}
 	}
-	return s.handleLifecycle(topic)
+	return s.handleLifecycle(ctx, topic)
 }
 
 // Subscribe records a topic subscription.
 func (s *Sink) Subscribe(ctx context.Context, topic string) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.subscriptions[topic] = struct{}{}
-	if s.client != nil && s.client.IsConnected() {
-		if token := s.client.Subscribe(topic, 0, s.onMessage); token.Wait() && token.Error() != nil {
+	client := s.client
+	s.mu.Unlock()
+	if client != nil && client.IsConnected() {
+		if token := client.Subscribe(topic, 0, s.onMessage); token.Wait() && token.Error() != nil {
+			s.mu.Lock()
+			delete(s.subscriptions, topic)
+			s.mu.Unlock()
 			return token.Error()
 		}
 	}
@@ -125,37 +135,42 @@ func (s *Sink) Subscribe(ctx context.Context, topic string) error {
 
 // Unsubscribe removes a topic subscription.
 func (s *Sink) Unsubscribe(ctx context.Context, topic string) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	delete(s.subscriptions, topic)
-	if s.client != nil && s.client.IsConnected() {
-		if token := s.client.Unsubscribe(topic); token.Wait() && token.Error() != nil {
+	client := s.client
+	s.mu.Unlock()
+	if client != nil && client.IsConnected() {
+		if token := client.Unsubscribe(topic); token.Wait() && token.Error() != nil {
 			return token.Error()
 		}
 	}
 	return nil
 }
 
-// Close closes the sink.
-func (s *Sink) Close() error { return nil }
+// Close disconnects the MQTT client and clears command subscriptions.
+func (s *Sink) Close() error {
+	s.mu.Lock()
+	client := s.client
+	s.client = nil
+	clear(s.subscriptions)
+	s.mu.Unlock()
+	if client != nil && client.IsConnected() {
+		client.Disconnect(250)
+	}
+	return nil
+}
 
 func (s *Sink) onMessage(_ mqttclient.Client, msg mqttclient.Message) {
 	if evt, err := decodeCommand(string(msg.Topic()), msg.Payload()); err == nil {
 		s.mu.Lock()
 		out := s.commandOutput
 		router := s.commandRouter
-		sink := s.commandSink
 		s.mu.Unlock()
 		if router != nil {
 			_ = router(context.Background(), evt)
-			return
-		}
-		if sink != nil && evt.MsgType == domain.MessageTypeNCMD && isRebirthMetric(evt) {
-			trigger := domain.Event{GroupID: evt.GroupID, NodeID: evt.NodeID, MsgType: domain.MessageTypeNBIRTH, Timestamp: time.Now().UTC(), Metrics: evt.Metrics}
-			if payload, err := encodeRebirth(trigger); err == nil {
-				_ = sink.Publish(context.Background(), triggerTopic(trigger), payload)
-			}
 			return
 		}
 		if out != nil {
@@ -167,93 +182,76 @@ func (s *Sink) onMessage(_ mqttclient.Client, msg mqttclient.Message) {
 	}
 }
 
-func isRebirthMetric(evt domain.Event) bool {
-	for _, metric := range evt.Metrics {
-		if metric.Name != "Node Control/Rebirth" {
-			continue
-		}
-		if v, ok := metric.Value.(bool); ok && v {
-			return true
-		}
-		if v, ok := metric.Value.(string); ok && v == "true" {
-			return true
-		}
-	}
-	return false
-}
-
-func triggerTopic(evt domain.Event) string {
-	return fmt.Sprintf("spBv1.0/%s/NBIRTH/%s", evt.GroupID, evt.NodeID)
-}
-
-func encodeRebirth(evt domain.Event) ([]byte, error) {
-	return json.Marshal(map[string]any{
-		"group_id": evt.GroupID,
-		"node_id":  evt.NodeID,
-		"msg_type":  string(evt.MsgType),
-		"timestamp": evt.Timestamp.UTC().Format(time.RFC3339Nano),
-		"metrics":   evt.Metrics,
-	})
-}
-
-func (s *Sink) handleLifecycle(topic string) error {
+func (s *Sink) handleLifecycle(ctx context.Context, topic string) error {
 	parts := strings.Split(topic, "/")
 	if len(parts) < 4 {
 		return nil
 	}
 	if len(parts) >= 5 && parts[2] == "DBIRTH" {
-		return s.Subscribe(context.Background(), strings.Join(parts[:5], "/"))
+		return s.Subscribe(ctx, fmt.Sprintf("%s/%s/DCMD/%s/%s", parts[0], parts[1], parts[3], parts[4]))
 	}
 	if len(parts) >= 4 && parts[2] == "NBIRTH" {
-		groupID := parts[1]
-		nodeID := parts[3]
-		_ = s.Subscribe(context.Background(), fmt.Sprintf("spBv1.0/%s/NCMD/%s", groupID, nodeID))
-		_ = s.Subscribe(context.Background(), fmt.Sprintf("spBv1.0/%s/DCMD/%s/+", groupID, nodeID))
+		if err := s.Subscribe(ctx, fmt.Sprintf("%s/%s/NCMD/%s", parts[0], parts[1], parts[3])); err != nil {
+			return err
+		}
+		return s.Subscribe(ctx, fmt.Sprintf("%s/%s/DCMD/%s/+", parts[0], parts[1], parts[3]))
 	}
 	if len(parts) >= 4 && parts[2] == "NDEATH" {
-		groupID := parts[1]
-		nodeID := parts[3]
-		_ = s.Unsubscribe(context.Background(), fmt.Sprintf("spBv1.0/%s/NCMD/%s", groupID, nodeID))
-		_ = s.Unsubscribe(context.Background(), fmt.Sprintf("spBv1.0/%s/DCMD/%s/+", groupID, nodeID))
+		if err := s.Unsubscribe(ctx, fmt.Sprintf("%s/%s/NCMD/%s", parts[0], parts[1], parts[3])); err != nil {
+			return err
+		}
+		return s.Unsubscribe(ctx, fmt.Sprintf("%s/%s/DCMD/%s/+", parts[0], parts[1], parts[3]))
 	}
 	if len(parts) >= 5 && parts[2] == "DDEATH" {
-		groupID := parts[1]
-		nodeID := parts[3]
-		deviceID := parts[4]
-		_ = s.Unsubscribe(context.Background(), fmt.Sprintf("spBv1.0/%s/DCMD/%s/%s", groupID, nodeID, deviceID))
+		return s.Unsubscribe(ctx, fmt.Sprintf("%s/%s/DCMD/%s/%s", parts[0], parts[1], parts[3], parts[4]))
 	}
 	return nil
 }
 
 func decodeCommand(topic string, payload []byte) (domain.Event, error) {
-	var raw struct {
-		GroupID  string `json:"group_id"`
-		NodeID   string `json:"node_id"`
-		DeviceID string `json:"device_id"`
-		MsgType  string `json:"msg_type"`
-		Metrics  []struct {
-			Name  string `json:"name"`
-			Value any    `json:"value"`
-		} `json:"metrics"`
+	parts := strings.Split(topic, "/")
+	if len(parts) < 4 || (parts[2] != string(domain.MessageTypeNCMD) && parts[2] != string(domain.MessageTypeDCMD)) {
+		return domain.Event{}, fmt.Errorf("invalid Sparkplug command topic %q", topic)
 	}
-	if err := json.Unmarshal(payload, &raw); err != nil {
+	var wire spbproto.Payload
+	if err := proto.Unmarshal(payload, &wire); err != nil {
 		return domain.Event{}, err
 	}
-	evt := domain.Event{GroupID: raw.GroupID, NodeID: raw.NodeID, DeviceID: raw.DeviceID, MsgType: domain.MessageType(raw.MsgType)}
-	if evt.GroupID == "" || evt.NodeID == "" {
-		parts := strings.Split(topic, "/")
-		if len(parts) >= 4 {
-			evt.GroupID = parts[1]
-			evt.NodeID = parts[3]
-		}
-		if len(parts) >= 5 {
-			evt.DeviceID = parts[4]
-		}
+	evt := domain.Event{GroupID: parts[1], NodeID: parts[3], MsgType: domain.MessageType(parts[2])}
+	if len(parts) >= 5 {
+		evt.DeviceID = parts[4]
 	}
-	for _, metric := range raw.Metrics {
-		evt.Metrics = append(evt.Metrics, domain.Metric{Name: metric.Name, Value: metric.Value})
+	for _, metric := range wire.Metrics {
+		var value any
+		switch spbproto.DataType(metric.GetDatatype()) {
+		case spbproto.DataType_Boolean:
+			value = metric.GetBooleanValue()
+		case spbproto.DataType_Int8, spbproto.DataType_Int16, spbproto.DataType_Int32:
+			value = int64(int32(metric.GetIntValue()))
+		case spbproto.DataType_Int64:
+			value = int64(metric.GetLongValue())
+		case spbproto.DataType_UInt8, spbproto.DataType_UInt16, spbproto.DataType_UInt32:
+			value = uint64(metric.GetIntValue())
+		case spbproto.DataType_UInt64:
+			value = metric.GetLongValue()
+		case spbproto.DataType_Float:
+			value = metric.GetFloatValue()
+		case spbproto.DataType_Double:
+			value = metric.GetDoubleValue()
+		case spbproto.DataType_String, spbproto.DataType_Text, spbproto.DataType_UUID:
+			value = metric.GetStringValue()
+		case spbproto.DataType_Bytes, spbproto.DataType_File:
+			value = append([]byte(nil), metric.GetBytesValue()...)
+		default:
+			return domain.Event{}, fmt.Errorf("unsupported command metric datatype %d", metric.GetDatatype())
+		}
+		evt.Metrics = append(evt.Metrics, domain.Metric{Name: metric.GetName(), Value: value})
 	}
 	return evt, nil
 }
 
-func init() { registry.RegisterSink("mqtt", func() (interfaces.OutputSink, error) { return New(Config{LWTTopic: "spBv1.0/bridge/NDEATH/node", LWTPayload: []byte("NDEATH")}), nil }) }
+func init() {
+	registry.RegisterSink("mqtt", func() (interfaces.OutputSink, error) {
+		return New(Config{LWTTopic: "spBv1.0/bridge/NDEATH/node", LWTPayload: []byte("NDEATH")}), nil
+	})
+}

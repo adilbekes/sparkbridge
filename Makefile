@@ -6,10 +6,10 @@ ARCHIFY_BIN ?= ./bin/archify-local
 init:
 	@mkdir -p pkg/domain pkg/interfaces pkg/spbproto pkg/engine pkg/pipeline \
 		pkg/adapters/inputs/json pkg/adapters/inputs/http pkg/adapters/inputs/mqtt pkg/adapters/inputs/grpc \
-		pkg/adapters/sinks/stdout pkg/adapters/sinks/file pkg/adapters/sinks/mqtt pkg/adapters/sinks/nats pkg/adapters/sinks/kafka \
-		pkg/adapters/storage/filestore pkg/adapters/storage/memorystore pkg/adapters/crypto/aesgcm \
-		internal/config internal/cli internal/logger api/proto api/asyncapi api/openapi configs scripts
-	@echo "go mod init github.com/<user>/sparkbridge"
+		pkg/adapters/sinks/stdout pkg/adapters/sinks/mqtt pkg/adapters/sinks/nats pkg/adapters/sinks/kafka \
+		pkg/adapters/sinkutil/proxy/buffered pkg/adapters/sinkutil/composite/multisink \
+		pkg/adapters/sinkutil/decorators/aesgcm pkg/adapters/sinkutil/decorators/resilience \
+		api/proto api/asyncapi api/openapi configs scripts
 
 fetch-proto:
 	@mkdir -p api/proto
@@ -26,7 +26,7 @@ test:
 	go test -race ./...
 
 build-grpc-mqtt:
-	go build -tags "input_grpc,sink_mqtt" -o bin/sparkbridge ./cmd/sparkbridge
+	go build -tags "input_grpc sink_mqtt" -o bin/sparkbridge ./cmd/sparkbridged
 
 build-all:
-	go build -tags "all_inputs all_sinks all_storage all_crypto" -o bin/sparkbridge ./cmd/sparkbridge
+	go build -tags "all_inputs all_sinks all_storage all_crypto" -o bin/sparkbridge ./cmd/sparkbridged

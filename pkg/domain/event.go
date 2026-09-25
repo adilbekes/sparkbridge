@@ -44,3 +44,46 @@ type Event struct {
 	Metrics    []Metric
 	Properties map[string]any
 }
+
+// Clone returns an independent copy of the metric.
+func (m Metric) Clone() Metric {
+	clone := m
+	if m.Alias != nil {
+		alias := *m.Alias
+		clone.Alias = &alias
+	}
+	clone.Properties = cloneMap(m.Properties)
+	if value, ok := m.Value.([]byte); ok {
+		clone.Value = append([]byte(nil), value...)
+	}
+	return clone
+}
+
+// Clone returns an independent copy of the event and its metrics.
+func (e Event) Clone() Event {
+	clone := e
+	clone.Properties = cloneMap(e.Properties)
+	clone.Metrics = make([]Metric, len(e.Metrics))
+	for i := range e.Metrics {
+		clone.Metrics[i] = e.Metrics[i].Clone()
+	}
+	return clone
+}
+
+func cloneMap(source map[string]any) map[string]any {
+	if source == nil {
+		return nil
+	}
+	clone := make(map[string]any, len(source))
+	for key, value := range source {
+		switch typed := value.(type) {
+		case []byte:
+			clone[key] = append([]byte(nil), typed...)
+		case map[string]any:
+			clone[key] = cloneMap(typed)
+		default:
+			clone[key] = value
+		}
+	}
+	return clone
+}

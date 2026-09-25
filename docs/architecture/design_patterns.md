@@ -106,7 +106,7 @@ Requirements:
 
 ### Composite Pattern
 
-Location: `pkg/adapters/sinks/multisink`
+Location: `pkg/adapters/sinkutil/composite/multisink`
 
 Why it is needed:
 Allows treating multiple output sinks as a single unified `MultiSink`. The engine treats it as a single output, but messages are automatically fan-out published to all registered child sinks (e.g., MQTT + Kafka simultaneously).
@@ -146,7 +146,7 @@ Requirements:
 
 ### Proxy Pattern
 
-Location: `pkg/adapters/sinks/buffered`
+Location: `pkg/adapters/sinkutil/proxy/buffered`
 
 Why it is needed:
 Acts as an offline buffering proxy. Intercepts outbound telemetry during network drops, persists payloads to local disk (SQLite/BadgerDB), and flushes them when connectivity recovers.
@@ -300,7 +300,7 @@ Requirements:
 
 ### Circuit Breaker Pattern
 
-Location: `pkg/adapters/sinks/resilience/`
+Location: `pkg/adapters/sinkutil/decorators/resilience/`
 
 Why it is needed:
 Prevents cascading failures when downstream brokers crash by failing fast and immediately routing messages to the offline disk proxy instead of hanging on network timeouts.

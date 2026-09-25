@@ -18,12 +18,17 @@ type OutputSink interface {
 	Close() error
 }
 
-
 // CommandSink extends OutputSink with MQTT subscription lifecycle hooks.
 type CommandSink interface {
 	OutputSink
 	Subscribe(ctx context.Context, topic string) error
 	Unsubscribe(ctx context.Context, topic string) error
+}
+
+// CommandRouterSink accepts a handler for inbound transport commands.
+type CommandRouterSink interface {
+	OutputSink
+	SetCommandRouter(func(context.Context, domain.Event) error)
 }
 
 // Encryptor encrypts payload bytes.

@@ -92,37 +92,48 @@ These rules keep Sparkplug lifecycle behavior deterministic while allowing the r
 
 ## Getting Started
 
-This section is intentionally left as a contributor-facing placeholder until the CLI, SDK surface, and packaging story are finalized.
-
 ### Installation
 
-TODO: document package installation and versioning.
+Build a binary containing every adapter:
+
+```bash
+make build-all
+```
 
 ### CLI Usage
 
-TODO: document gateway startup, config flags, and runtime examples.
+Run the local JSON-to-stdout configuration:
+
+```bash
+scripts/dev.sh run
+```
+
+The daemon accepts `-config <path>` and defaults to `configs/sparkbridge.yaml`.
 
 ### Go Module Imports
 
-TODO: document the public Go module path and package usage patterns.
+The module path is `sparkbridge`. Public runtime packages live under `pkg/`, including `pkg/domain`, `pkg/engine`, `pkg/pipeline`, and `pkg/interfaces`.
 
 ### Build Commands
 
 ```bash
 make init
 make gen-proto
+make test
+make build-all
 ```
-
-TODO: document the full build, test, and release workflow.
 
 ## Repository Layout
 
-- `cmd/sparkbridge`: current daemon entrypoint.
-- `internal/config`: configuration loading and validation.
-- `internal/grpc`: gRPC server implementation.
-- `internal/mqtt`: MQTT client wrapper.
-- `internal/sparkplug`: client manager and lifecycle orchestration.
-- `pkg/pb`: generated protobuf output.
+- `cmd/sparkbridged`: registry-based daemon entrypoint.
+- `pkg/domain`: transport-independent events and metrics.
+- `pkg/engine`: Sparkplug encoding, lifecycle state, and command routing.
+- `pkg/pipeline`: asynchronous worker and middleware pipeline.
+- `pkg/adapters/inputs`: build-tag-selected input adapters.
+- `pkg/adapters/sinks`: MQTT, Kafka, NATS, and stdout output sinks.
+- `pkg/adapters/sinkutil`: composites, decorators, and sink proxies.
+- `pkg/spbproto`: generated Sparkplug protobuf types.
+- `configs`: runtime configuration examples.
 
 ## Contribution Guidelines
 

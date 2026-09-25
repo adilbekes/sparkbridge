@@ -17,6 +17,9 @@ func Validation(next Handler) Handler {
 		if strings.TrimSpace(evt.GroupID) == "" || strings.TrimSpace(evt.NodeID) == "" {
 			return domain.Event{}, fmt.Errorf("invalid event identity")
 		}
+		if next == nil {
+			return evt, nil
+		}
 		return next(evt)
 	}
 }
@@ -26,6 +29,9 @@ func Enrichment(next Handler) Handler {
 	return func(evt domain.Event) (domain.Event, error) {
 		if evt.Timestamp.IsZero() {
 			evt.Timestamp = time.Now().UTC()
+		}
+		if next == nil {
+			return evt, nil
 		}
 		return next(evt)
 	}

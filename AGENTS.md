@@ -52,10 +52,10 @@
 - Prototype Pattern (`pkg/domain/`): implement deep-copy clone methods on `domain.Metric` and `domain.Event`.
 - Bridge Pattern (`pkg/pipeline/`): keep engine/pipeline abstraction separate from network transports.
 - Adapter Pattern (`pkg/adapters/`): wrap third-party drivers in `InputAdapter` or `OutputSink` implementations.
-- Composite Pattern (`pkg/adapters/sinks/multisink`): support multi-sink dispatch.
-- Decorator Pattern (`pkg/adapters/sinks/`): add encryption, metrics, and logging wrappers around sinks.
+- Composite Pattern (`pkg/adapters/sinkutil/composite/multisink`): support multi-sink dispatch.
+- Decorator Pattern (`pkg/adapters/sinkutil/decorators/`): add encryption, metrics, and logging wrappers around sinks.
 - Facade Pattern (`pkg/sdk/`): provide a simplified `sparkbridge.Client` SDK entrypoint.
-- Proxy Pattern (`pkg/adapters/sinks/buffered`): provide offline disk-buffering for sinks.
+- Proxy Pattern (`pkg/adapters/sinkutil/proxy/buffered`): provide offline disk-buffering for sinks.
 - Mediator Pattern (`pkg/pipeline/`): keep inputs and outputs decoupled through the pipeline.
 - State Pattern (`pkg/engine/state_machine.go`): model node lifecycle transitions.
 - Command Pattern (`pkg/domain/`): encapsulate telemetry events as commands for workers.

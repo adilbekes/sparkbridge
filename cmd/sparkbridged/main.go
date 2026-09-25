@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "sparkbridge/pkg/adapters/builtin"
 	"sparkbridge/pkg/config"
 	"sparkbridge/pkg/manager"
 )

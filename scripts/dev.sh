@@ -5,7 +5,7 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 case "${1:-}" in
   test)
-    exec go test -race ./...
+    exec go test -race -tags "all_inputs all_sinks all_storage all_crypto" ./...
     ;;
   bench)
     exec go test -bench=. ./...
@@ -14,7 +14,7 @@ case "${1:-}" in
     exec make -C "$ROOT_DIR" arch-check
     ;;
   run)
-    exec go run ./cmd/sparkbridged -config configs/sparkbridge.yaml
+    exec go run -tags "input_json sink_stdout" ./cmd/sparkbridged -config configs/sparkbridge.yaml
     ;;
   *)
     cat <<'EOF'

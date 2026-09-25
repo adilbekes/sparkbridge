@@ -5,11 +5,10 @@ package mqtt
 import (
 	"context"
 	"testing"
-	"time"
 )
 
 func TestSinkPublishAndClose(t *testing.T) {
-	sink := New(Config{BrokerURL: "tcp://localhost:1883", ClientID: "test-client", TopicPrefix: "sparkbridge"})
+	sink := New(Config{BrokerURL: "tcp://localhost:1883", ClientID: "test-client"})
 	if err := sink.Publish(context.Background(), "topic", []byte("payload")); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
@@ -36,5 +35,4 @@ func TestSinkCloseIsIdempotent(t *testing.T) {
 	if err := sink.Close(); err != nil {
 		t.Fatalf("second close: %v", err)
 	}
-	_ = time.Now()
 }

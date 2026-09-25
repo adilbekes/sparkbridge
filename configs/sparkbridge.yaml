@@ -1,17 +1,11 @@
-grpc:
-  socket_path: /tmp/sparkbridge.sock
-  socket_permissions: 438
-clients:
-  - id: default
-    enabled: true
-    mqtt:
-      broker_url: tcp://localhost:1883
-      client_id: sparkbridge-default
-      keep_alive_sec: 30
-      qos: 0
-    sparkplug:
-      group_id: factory-a
-      node_id: bridge-a
-      namespace: spBv1.0
-metrics:
-  address: 127.0.0.1:9090
+bridges:
+  - name: default
+    workers: 1
+    inputs:
+      - name: stdin
+        kind: json
+        config: stdin
+    sinks:
+      - name: console
+        kind: stdout
+        config: ""

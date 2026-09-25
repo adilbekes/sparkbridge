@@ -4,23 +4,22 @@ rules:
   - name: clean-architecture-layout
     description: Enforce Clean Architecture and the standard Go project layout.
     allow:
-      - cmd/sparkbridge/**
+      - cmd/sparkbridged/**
       - pkg/domain/**
       - pkg/interfaces/**
       - pkg/spbproto/**
       - pkg/engine/**
       - pkg/pipeline/**
       - pkg/adapters/**
-      - internal/**
 
   - name: domain-layer-boundaries
-    description: pkg/domain must remain independent of pipeline, adapters, engine, and internal packages.
+    description: pkg/domain must remain independent of pipeline, adapters, engine, and generated protobuf packages.
     target: pkg/domain/**
     disallow_imports:
       - sparkbridge/pkg/pipeline
       - sparkbridge/pkg/engine
       - sparkbridge/pkg/adapters
-      - sparkbridge/internal/**
+      - sparkbridge/pkg/spbproto
 
   - name: interface-layer-boundaries
     description: pkg/interfaces may only depend on pkg/domain and protobuf.
@@ -31,7 +30,6 @@ rules:
     disallow_imports:
       - sparkbridge/pkg/pipeline
       - sparkbridge/pkg/adapters
-      - sparkbridge/internal/**
 
   - name: engine-layer-boundaries
     description: pkg/engine may depend on domain, interfaces, and spbproto.
@@ -43,7 +41,6 @@ rules:
       - google.golang.org/protobuf/**
     disallow_imports:
       - sparkbridge/pkg/adapters/**
-      - sparkbridge/internal/**
 
   - name: pipeline-layer-boundaries
     description: pkg/pipeline may depend on domain, interfaces, and engine.
@@ -55,7 +52,6 @@ rules:
       - google.golang.org/protobuf/**
     disallow_imports:
       - sparkbridge/pkg/adapters/**
-      - sparkbridge/internal/**
 
   - name: external-dependency-isolation
     description: External transports must live in adapter packages.

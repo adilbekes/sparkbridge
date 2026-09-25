@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"sparkbridge/pkg/interfaces"
@@ -40,6 +41,9 @@ func (m *SequenceManager) Current() uint8 {
 
 // InitializeBDSeq loads, increments, and persists the full bdSeq session counter.
 func InitializeBDSeq(ctx context.Context, store interfaces.StateStore) (uint64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	if store == nil {
 		return 0, nil
 	}
@@ -47,7 +51,13 @@ func InitializeBDSeq(ctx context.Context, store interfaces.StateStore) (uint64, 
 	if err != nil {
 		return 0, err
 	}
+	if current == ^uint64(0) {
+		return 0, fmt.Errorf("bdSeq session counter overflow")
+	}
 	next := current + 1
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	if err := store.SetBdSeq(next); err != nil {
 		return 0, err
 	}
