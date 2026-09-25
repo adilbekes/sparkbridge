@@ -8,6 +8,7 @@ import (
 	"sparkbridge/pkg/config"
 	"sparkbridge/pkg/domain"
 	"sparkbridge/pkg/interfaces"
+	"sparkbridge/pkg/engine"
 	"sparkbridge/pkg/pipeline"
 	"sparkbridge/pkg/pipeline/middleware"
 	"sparkbridge/pkg/pipeline/ratelimit"
@@ -18,6 +19,8 @@ type SparkBridge struct {
 	Name    string
 	Pool    *pipeline.WorkerPool
 	Sinks   []interfaces.OutputSink
+	Engine  *engine.Engine
+	Router  *engine.CommandRouter
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
@@ -55,10 +58,22 @@ func (m *Manager) Get(ctx context.Context, cfg config.Bridge) (*SparkBridge, err
 			sinks = append(sinks, sink)
 		}
 	}
+	eng := engine.NewEngine(nil, nil, nil)
 	pool := pipeline.NewWorkerPool(cfg.Workers, func(evt domain.Event) (pipeline.EncodedMessage, error) {
+		if evt.MsgType == domain.MessageTypeNCMD || evt.MsgType == domain.MessageTypeDCMD {
+			if engine.IsRebirthCommand(evt) {
+				rebirthEvt := domain.Event{GroupID: evt.GroupID, NodeID: evt.NodeID, MsgType: domain.MessageTypeNBIRTH, Timestamp: evt.Timestamp, Metrics: evt.Metrics}
+				topic, payload, err := eng.BuildPayload(ctx, rebirthEvt)
+				if err != nil {
+					return pipeline.EncodedMessage{}, err
+				}
+				return pipeline.EncodedMessage{Topic: topic, Payload: payload, Timestamp: evt.Timestamp}, nil
+			}
+		}
 		return pipeline.EncodedMessage{Topic: cfg.Name, Payload: []byte(evt.NodeID)}, nil
 	}, ratelimit.New(100, 10), middleware.Validation(middleware.Enrichment(func(evt domain.Event) (domain.Event, error) { return evt, nil })))
-	inst := &SparkBridge{Name: cfg.Name, Pool: pool, Sinks: sinks, ctx: bridgeCtx, cancel: cancel}
+	router := engine.NewCommandRouter(eng, pool.In(), nil)
+	inst := &SparkBridge{Name: cfg.Name, Pool: pool, Sinks: sinks, Engine: eng, Router: router, ctx: bridgeCtx, cancel: cancel}
 	m.instances[cfg.Name] = inst
 	return inst, nil
 }

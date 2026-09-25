@@ -10,7 +10,7 @@ import (
 	"sparkbridge/pkg/interfaces"
 )
 
-// DummyStorage is an in-memory bdSeq store.
+// DummyStorage is an in-memory bdSeq session counter store.
 type DummyStorage struct {
 	mu    sync.Mutex
 	bdSeq uint64
@@ -23,7 +23,7 @@ func (d *DummyStorage) GetBdSeq() (uint64, error) {
 	return d.bdSeq, nil
 }
 
-// SetBdSeq stores the current bdSeq value.
+// SetBdSeq stores the full bdSeq session counter value.
 func (d *DummyStorage) SetBdSeq(val uint64) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

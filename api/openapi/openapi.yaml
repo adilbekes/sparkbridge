@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info:
+  title: SparkBridge Control Surface
+  version: '0.1.0'
+paths:
+  /healthz:
+    get:
+      summary: Health endpoint
+      responses:
+        '200':
+          description: healthy
+  /metrics:
+    get:
+      summary: Metrics endpoint
+      responses:
+        '200':
+          description: Prometheus metrics

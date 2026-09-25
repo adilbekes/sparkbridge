@@ -1,0 +1,26 @@
+asyncapi: '2.6.0'
+info:
+  title: SparkBridge Event Surface
+  version: '0.1.0'
+  description: AsyncAPI starter spec for SparkBridge input and output events.
+channels:
+  telemetry/json:
+    subscribe:
+      message:
+        name: JsonTelemetry
+        payload:
+          type: object
+          properties:
+            group_id:
+              type: string
+            node_id:
+              type: string
+  telemetry/mqtt:
+    publish:
+      message:
+        name: MqttTelemetry
+        payload:
+          type: object
+          properties:
+            topic:
+              type: string

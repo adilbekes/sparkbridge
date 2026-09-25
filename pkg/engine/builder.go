@@ -123,9 +123,11 @@ func (e *Engine) BuildPayload(ctx context.Context, event domain.Event) (string, 
 		Timestamp: proto.Uint64(now),
 		Metrics:   metrics,
 		Seq:       proto.Uint64(seq),
+		Topic:     proto.String(topic),
+		MsgType:   proto.String(string(event.MsgType)),
 	}
 	if event.MsgType == domain.MessageTypeNBIRTH || event.MsgType == domain.MessageTypeNDEATH {
-		bd := e.bdSeq
+		bd := interfaces.NormalizeBdSeq(e.bdSeq)
 		dt := spbproto.DataType_DATA_TYPE_INT64
 		payload.Metrics = append(payload.Metrics, &spbproto.Metric{Name: proto.String("bdSeq"), Datatype: &dt, IntValue: ptrInt64(int64(bd))})
 	}

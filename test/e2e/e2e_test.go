@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"sparkbridge/pkg/adapters/sinks/multisink"
+	"sparkbridge/pkg/adapters/sinks/support/composite"
 	"sparkbridge/pkg/domain"
 	"sparkbridge/pkg/pipeline"
 	"sparkbridge/pkg/pipeline/middleware"
@@ -18,7 +18,7 @@ func TestEndToEnd(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	out := make(chan pipeline.EncodedMessage, 1)
-	_ = multisink.New()
+	_ = composite.New()
 	pool := pipeline.NewWorkerPool(1, func(evt domain.Event) (pipeline.EncodedMessage, error) {
 		return pipeline.EncodedMessage{Topic: evt.GroupID, Payload: []byte(evt.NodeID), Timestamp: time.Now()}, nil
 	}, ratelimit.New(10, time.Millisecond), middleware.Validation(middleware.Enrichment(func(evt domain.Event) (domain.Event, error) { return evt, nil })))

@@ -30,4 +30,6 @@ message Payload {
   optional uint64 seq = 3;
   optional string uuid = 4;
   optional bytes body = 5;
+  optional string topic = 6;
+  optional string msg_type = 7;
 }

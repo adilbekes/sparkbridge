@@ -16,6 +16,10 @@ const (
 	MessageTypeDDATA MessageType = "DDATA"
 	// MessageTypeDDEATH marks a device death payload.
 	MessageTypeDDEATH MessageType = "DDEATH"
+	// MessageTypeNCMD marks a node command payload.
+	MessageTypeNCMD MessageType = "NCMD"
+	// MessageTypeDCMD marks a device command payload.
+	MessageTypeDCMD MessageType = "DCMD"
 	// MessageTypeNDEATH marks a node death payload.
 	MessageTypeNDEATH MessageType = "NDEATH"
 )

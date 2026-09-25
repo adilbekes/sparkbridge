@@ -82,3 +82,75 @@ func TestPayloadEncoding(t *testing.T) {
 		t.Fatalf("unexpected int value %#v", metric.IntValue)
 	}
 }
+
+func TestInitializeBDSeqStoresFullSessionCounter(t *testing.T) {
+	store := &memoryStore{bdSeq: 255}
+	got, err := InitializeBDSeq(context.Background(), store)
+	if err != nil {
+		t.Fatalf("init bdSeq: %v", err)
+	}
+	if got != 256 {
+		t.Fatalf("expected full session counter 256, got %d", got)
+	}
+	if store.bdSeq != 256 {
+		t.Fatalf("expected persisted counter 256, got %d", store.bdSeq)
+	}
+}
+
+func TestPayloadEmitsModuloBdSeq(t *testing.T) {
+	e := NewEngine(&memoryStore{}, noopEncryptor{}, DefaultTypeResolver{})
+	e.bdSeq = 513
+	_, payload, err := e.BuildPayload(context.Background(), domain.Event{
+		GroupID: "group",
+		NodeID:  "node",
+		MsgType: domain.MessageTypeNBIRTH,
+		Timestamp: time.Unix(0, 0),
+	})
+	if err != nil {
+		t.Fatalf("build payload: %v", err)
+	}
+	var decoded spbproto.Payload
+	if err := proto.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	found := false
+	for _, metric := range decoded.Metrics {
+		if metric.Name != nil && *metric.Name == "bdSeq" {
+			found = true
+			if metric.IntValue == nil || *metric.IntValue != 1 {
+				t.Fatalf("expected wire bdSeq 1, got %#v", metric.IntValue)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected bdSeq metric in payload")
+	}
+}
+
+func TestIsRebirthCommand(t *testing.T) {
+	evt := domain.Event{MsgType: domain.MessageTypeNCMD, Metrics: []domain.Metric{{Name: "Node Control/Rebirth", Value: true}}}
+	if !IsRebirthCommand(evt) {
+		t.Fatal("expected rebirth command to be detected")
+	}
+	if IsRebirthCommand(domain.Event{MsgType: domain.MessageTypeDCMD}) {
+		t.Fatal("did not expect rebirth command on device command")
+	}
+}
+
+func TestCommandRouterRebirthEmitsNBIRTH(t *testing.T) {
+	store := &memoryStore{}
+	e := NewEngine(store, noopEncryptor{}, DefaultTypeResolver{})
+	out := make(chan domain.Event, 1)
+	router := NewCommandRouter(e, out, nil)
+	if err := router.Handle(context.Background(), domain.Event{GroupID: "g", NodeID: "n", MsgType: domain.MessageTypeNCMD, Metrics: []domain.Metric{{Name: "Node Control/Rebirth", Value: true}}}); err != nil {
+		t.Fatalf("handle rebirth: %v", err)
+	}
+	select {
+	case evt := <-out:
+		if evt.MsgType != domain.MessageTypeNBIRTH {
+			t.Fatalf("expected NBIRTH event, got %s", evt.MsgType)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected rebirth event")
+	}
+}

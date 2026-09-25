@@ -18,13 +18,24 @@ type OutputSink interface {
 	Close() error
 }
 
+
+// CommandSink extends OutputSink with MQTT subscription lifecycle hooks.
+type CommandSink interface {
+	OutputSink
+	Subscribe(ctx context.Context, topic string) error
+	Unsubscribe(ctx context.Context, topic string) error
+}
+
 // Encryptor encrypts payload bytes.
 type Encryptor interface {
 	Encrypt(payload []byte) ([]byte, error)
 }
 
-// StateStore persists bdSeq state.
+// StateStore persists the full bdSeq session counter state.
 type StateStore interface {
 	GetBdSeq() (uint64, error)
 	SetBdSeq(val uint64) error
 }
+
+// NormalizeBdSeq clamps bdSeq into the Sparkplug-required 0..255 range for wire emission.
+func NormalizeBdSeq(val uint64) uint64 { return val % 256 }

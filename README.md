@@ -42,7 +42,7 @@ Input Adapters (JSON, HTTP, Raw MQTT, gRPC)
 ### Core State Rules
 
 - `seq`: thread-safe, stored strictly in memory, constrained to `0..255`, and automatically reset to `0` on `NBIRTH`.
-- `bdSeq`: persisted across restarts through a `StateStore` interface, constrained to `0..255`.
+- `bdSeq`: persisted across restarts as a full session counter through a `StateStore` interface, while the emitted wire value is normalized to `0..255`.
 
 These rules keep Sparkplug lifecycle behavior deterministic while allowing the runtime to remain stateless where appropriate and durable where required.
 

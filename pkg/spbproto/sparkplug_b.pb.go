@@ -186,6 +186,8 @@ type Payload struct {
 	Seq           *uint64                `protobuf:"varint,3,opt,name=seq" json:"seq,omitempty"`
 	Uuid          *string                `protobuf:"bytes,4,opt,name=uuid" json:"uuid,omitempty"`
 	Body          []byte                 `protobuf:"bytes,5,opt,name=body" json:"body,omitempty"`
+	Topic         *string                `protobuf:"bytes,6,opt,name=topic" json:"topic,omitempty"`
+	MsgType       *string                `protobuf:"bytes,7,opt,name=msg_type,json=msgType" json:"msg_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -255,6 +257,20 @@ func (x *Payload) GetBody() []byte {
 	return nil
 }
 
+func (x *Payload) GetTopic() string {
+	if x != nil && x.Topic != nil {
+		return *x.Topic
+	}
+	return ""
+}
+
+func (x *Payload) GetMsgType() string {
+	if x != nil && x.MsgType != nil {
+		return *x.MsgType
+	}
+	return ""
+}
+
 var File_sparkplug_b_proto protoreflect.FileDescriptor
 
 const file_sparkplug_b_proto_rawDesc = "" +
@@ -267,13 +283,15 @@ const file_sparkplug_b_proto_rawDesc = "" +
 	"\tint_value\x18\x04 \x01(\x03R\bintValue\x12!\n" +
 	"\fdouble_value\x18\x05 \x01(\x01R\vdoubleValue\x12\x1d\n" +
 	"\n" +
-	"bool_value\x18\x06 \x01(\bR\tboolValue\"\x8e\x01\n" +
+	"bool_value\x18\x06 \x01(\bR\tboolValue\"\xbf\x01\n" +
 	"\aPayload\x12\x1c\n" +
 	"\ttimestamp\x18\x01 \x01(\x04R\ttimestamp\x12+\n" +
 	"\ametrics\x18\x02 \x03(\v2\x11.sparkplug.MetricR\ametrics\x12\x10\n" +
 	"\x03seq\x18\x03 \x01(\x04R\x03seq\x12\x12\n" +
 	"\x04uuid\x18\x04 \x01(\tR\x04uuid\x12\x12\n" +
-	"\x04body\x18\x05 \x01(\fR\x04body*\xb8\x01\n" +
+	"\x04body\x18\x05 \x01(\fR\x04body\x12\x14\n" +
+	"\x05topic\x18\x06 \x01(\tR\x05topic\x12\x19\n" +
+	"\bmsg_type\x18\a \x01(\tR\amsgType*\xb8\x01\n" +
 	"\bDataType\x12\x15\n" +
 	"\x11DATA_TYPE_UNKNOWN\x10\x00\x12\x13\n" +
 	"\x0fDATA_TYPE_INT32\x10\x01\x12\x13\n" +

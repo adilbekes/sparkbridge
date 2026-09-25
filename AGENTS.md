@@ -17,7 +17,7 @@
 - Reset `seq` to `0` immediately after emitting an `NBIRTH` payload.
 - Never persist `seq` to disk.
 - `bdSeq` must be loaded and incremented through the `StateStore` interface during node initialization.
-- `bdSeq` is constrained to `0..255` and must persist across process restarts.
+- `bdSeq` persists as a full session counter across process restarts, while the emitted Sparkplug wire value is constrained to `0..255` via modulo normalization.
 
 ## Concurrency & Performance
 

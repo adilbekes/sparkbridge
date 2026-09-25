@@ -38,7 +38,7 @@ func (m *SequenceManager) Current() uint8 {
 	return m.seq
 }
 
-// InitializeBDSeq loads, increments, wraps, and persists bdSeq.
+// InitializeBDSeq loads, increments, and persists the full bdSeq session counter.
 func InitializeBDSeq(ctx context.Context, store interfaces.StateStore) (uint64, error) {
 	if store == nil {
 		return 0, nil
@@ -47,7 +47,7 @@ func InitializeBDSeq(ctx context.Context, store interfaces.StateStore) (uint64, 
 	if err != nil {
 		return 0, err
 	}
-	next := (current + 1) % 256
+	next := current + 1
 	if err := store.SetBdSeq(next); err != nil {
 		return 0, err
 	}
