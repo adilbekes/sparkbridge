@@ -1,0 +1,82 @@
+version: 1
+
+rules:
+  - name: clean-architecture-layout
+    description: Enforce Clean Architecture and the standard Go project layout.
+    allow:
+      - cmd/sparkbridge/**
+      - pkg/domain/**
+      - pkg/interfaces/**
+      - pkg/spbproto/**
+      - pkg/engine/**
+      - pkg/pipeline/**
+      - pkg/adapters/**
+      - internal/**
+
+  - name: domain-layer-boundaries
+    description: pkg/domain must remain independent of pipeline, adapters, engine, and internal packages.
+    target: pkg/domain/**
+    disallow_imports:
+      - sparkbridge/pkg/pipeline
+      - sparkbridge/pkg/engine
+      - sparkbridge/pkg/adapters
+      - sparkbridge/internal/**
+
+  - name: interface-layer-boundaries
+    description: pkg/interfaces may only depend on pkg/domain and protobuf.
+    target: pkg/interfaces/**
+    allow_imports:
+      - sparkbridge/pkg/domain
+      - google.golang.org/protobuf/**
+    disallow_imports:
+      - sparkbridge/pkg/pipeline
+      - sparkbridge/pkg/adapters
+      - sparkbridge/internal/**
+
+  - name: engine-layer-boundaries
+    description: pkg/engine may depend on domain, interfaces, and spbproto.
+    target: pkg/engine/**
+    allow_imports:
+      - sparkbridge/pkg/domain
+      - sparkbridge/pkg/interfaces
+      - sparkbridge/pkg/spbproto
+      - google.golang.org/protobuf/**
+    disallow_imports:
+      - sparkbridge/pkg/adapters/**
+      - sparkbridge/internal/**
+
+  - name: pipeline-layer-boundaries
+    description: pkg/pipeline may depend on domain, interfaces, and engine.
+    target: pkg/pipeline/**
+    allow_imports:
+      - sparkbridge/pkg/domain
+      - sparkbridge/pkg/interfaces
+      - sparkbridge/pkg/engine
+      - google.golang.org/protobuf/**
+    disallow_imports:
+      - sparkbridge/pkg/adapters/**
+      - sparkbridge/internal/**
+
+  - name: external-dependency-isolation
+    description: External transports must live in adapter packages.
+    target: pkg/adapters/**
+    allow_imports:
+      - github.com/eclipse/paho.mqtt.golang/**
+      - github.com/nats-io/**
+      - github.com/segmentio/kafka-go/**
+      - google.golang.org/protobuf/**
+
+  - name: no-external-transports-in-domain
+    description: Domain code must not import transport clients or adapter packages.
+    target: pkg/domain/**
+    disallow_imports:
+      - github.com/eclipse/paho.mqtt.golang/**
+      - github.com/nats-io/**
+      - github.com/segmentio/kafka-go/**
+      - sparkbridge/pkg/adapters/**
+
+checks:
+  - name: arch-check
+    command: archify check --config ARCHIFY.yaml
+    requires:
+      - go test -race ./...

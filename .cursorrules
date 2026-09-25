@@ -1,0 +1,55 @@
+# SparkBridge AI Context
+
+## Project Scope & Identity
+
+- Project name: SparkBridge
+- Primary language: Go 1.27+
+- Architecture: Clean Architecture with the standard Go project layout (`cmd/`, `pkg/`, `internal/`)
+
+## Domain & Protocol Rules
+
+- Always use `google.golang.org/protobuf/proto` for Protobuf operations.
+- Use the official Sparkplug B schema (`sparkplug_b.proto`, proto2) for protocol work.
+- Treat optional proto fields strictly as pointers such as `*uint64`, `*string`, and `*float32` so field presence is explicit.
+- `seq` is strictly in-memory, implemented with `atomic.Uint64` or `sync.Mutex`, constrained to `0..255`.
+- Reset `seq` to `0` immediately after emitting an `NBIRTH` payload.
+- Never persist `seq` to disk.
+- `bdSeq` must be loaded and incremented through the `StateStore` interface during node initialization.
+- `bdSeq` is constrained to `0..255` and must persist across process restarts.
+
+## Concurrency & Performance
+
+- Use Go channels such as `chan domain.Event` and `chan EncodedMessage` to decouple pipeline stages.
+- Prefer modern Go 1.27+ concurrency primitives for worker pools, cancellation, and coordination.
+- All I/O and pipeline workers must accept and respect `context.Context` for cancellation and timeouts.
+- Avoid global mutable state.
+- Inject dependencies explicitly through constructors such as `NewEngine(...)` and `NewPipeline(...)`.
+- Generated code and runtime code must be safe under `go test -race ./...`.
+- Aim for zero memory leaks and strict thread safety.
+
+## Build Tags & Adapter Registry
+
+- Every adapter package under `pkg/adapters/inputs/<name>/`, `pkg/adapters/sinks/<name>/`, `pkg/adapters/storage/<name>/`, and `pkg/adapters/crypto/<name>/` must include a build tag header that matches its capability tag plus the matching all-inclusive tag.
+- Required build tag forms:
+  - `//go:build input_<name> || all_inputs`
+  - `//go:build sink_<name> || all_sinks`
+  - `//go:build storage_<name> || all_storage`
+  - `//go:build crypto_<name> || all_crypto`
+- Adapter implementations must auto-register through `pkg/adapters/registry` in package `init()` when compiled.
+- The registry must be thread-safe and the CLI/daemon must instantiate inputs and sinks dynamically from runtime YAML configuration.
+- If config requests an adapter that was not compiled into the binary, return a clear build-tag error that names the adapter and the missing tag.
+- Support modular binaries that omit unneeded adapter dependencies by compiling only the requested build tags.
+
+## Code Quality & Testing
+
+- Write table-driven unit tests for domain logic, encoders, and state counters.
+- Minimize external dependencies.
+- Prefer the Go standard library wherever feasible, especially `net/http`, `sync`, `context`, `time`, and `crypto/aes`.
+- Add meaningful Go doc comments to all exported types, functions, and interfaces.
+
+## Repository Notes
+
+- The module name is `sparkbridge`. 
+- Public packages should remain small and explicit.
+- Keep code aligned with Sparkplug B lifecycle rules and deterministic state handling.
+- The adapter registry lives at `pkg/adapters/registry`.

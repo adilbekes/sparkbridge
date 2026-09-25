@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+set -eu
+
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+if [ -x "$ROOT_DIR/bin/archify.bin" ]; then
+	exec "$ROOT_DIR/bin/archify.bin" "$@"
+fi
+
+if command -v archify >/dev/null 2>&1; then
+	exec archify "$@"
+fi
+
+echo "archify binary not found: install archify or place a local binary at bin/archify.bin" >&2
+exit 1

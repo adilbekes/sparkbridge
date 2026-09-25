@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package sparkplug.v1;
 
-option go_package = "sparkplugb-agent/pkg/pb;pb";
+option go_package = "sparkbridge/pkg/pb;pb";
 
 service SparkplugIngressService {
   rpc Bridge (stream EdgeMessage) returns (stream CloudCommand);

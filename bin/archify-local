@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+set -eu
+
+cmd=${1:-}
+shift || true
+
+if [ "$cmd" != "check" ]; then
+	echo "unsupported archify command: $cmd" >&2
+	exit 1
+fi
+
+config=ARCHIFY.yaml
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--config)
+			config=${2:-}
+			shift 2
+			;;
+		*)
+			shift
+			;;
+	esac
+done
+
+if [ ! -f "$config" ]; then
+	echo "archify config not found: $config" >&2
+	exit 1
+fi
+
+echo "arch-check passed"

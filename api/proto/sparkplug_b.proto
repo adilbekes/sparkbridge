@@ -1,0 +1,33 @@
+syntax = "proto2";
+
+package sparkplug;
+
+option go_package = "sparkbridge/pkg/spbproto;spbproto";
+
+enum DataType {
+  DATA_TYPE_UNKNOWN = 0;
+  DATA_TYPE_INT32 = 1;
+  DATA_TYPE_INT64 = 2;
+  DATA_TYPE_FLOAT = 3;
+  DATA_TYPE_DOUBLE = 4;
+  DATA_TYPE_STRING = 5;
+  DATA_TYPE_BOOLEAN = 6;
+  DATA_TYPE_BYTES = 7;
+}
+
+message Metric {
+  optional string name = 1;
+  optional DataType datatype = 2;
+  optional string string_value = 3;
+  optional int64 int_value = 4;
+  optional double double_value = 5;
+  optional bool bool_value = 6;
+}
+
+message Payload {
+  optional uint64 timestamp = 1;
+  repeated Metric metrics = 2;
+  optional uint64 seq = 3;
+  optional string uuid = 4;
+  optional bytes body = 5;
+}

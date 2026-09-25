@@ -1,4 +1,4 @@
-module sparkplugb-agent
+module sparkbridge
 
 go 1.24.0
 

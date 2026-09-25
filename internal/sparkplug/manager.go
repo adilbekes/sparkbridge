@@ -9,9 +9,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	appcfg "sparkplugb-agent/internal/config"
-	mqttclient "sparkplugb-agent/internal/mqtt"
-	spb "sparkplugb-agent/pkg/pb"
+	appcfg "sparkbridge/internal/config"
+	mqttclient "sparkbridge/internal/mqtt"
+	spb "sparkbridge/pkg/pb"
 
 	"github.com/google/uuid"
 )

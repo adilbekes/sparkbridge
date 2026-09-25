@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	spb "sparkplugb-agent/pkg/pb"
+	spb "sparkbridge/pkg/pb"
 
 	"google.golang.org/grpc"
 )

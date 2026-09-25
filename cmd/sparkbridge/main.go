@@ -11,9 +11,9 @@ import (
 	"runtime/pprof"
 	"syscall"
 
-	"sparkplugb-agent/internal/config"
-	spbgrpc "sparkplugb-agent/internal/grpc"
-	"sparkplugb-agent/internal/sparkplug"
+	"sparkbridge/internal/config"
+	spbgrpc "sparkbridge/internal/grpc"
+	"sparkbridge/internal/sparkplug"
 )
 
 func main() {
@@ -66,5 +66,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("sparkplugb-agent stopped")
+	fmt.Println("sparkbridge stopped")
 }
